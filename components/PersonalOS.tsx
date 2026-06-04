@@ -1119,8 +1119,11 @@ function JournalTab() {
 function HealthTab() {
   const [cal,setCal]=useState(0);
   const [protein,setProtein]=useState(0);
+  const [carbs,setCarbs]=useState(0);
+  const [fat,setFat]=useState(0);
   const [meals,setMeals]=useState([]);
   const [mIn,setMIn]=useState("");
+  const [estimating,setEstimating]=useState(false);
   const [sleep,setSleep]=useState(0);
   const [sIn,setSIn]=useState("");
   const [habits,setHabits]=useState([]);
@@ -1129,7 +1132,25 @@ function HealthTab() {
     supabase.from("habits").select("*").order("id")
       .then(({data})=>setHabits(Array.isArray(data)?data:[]));
   },[]);
-  const logM=()=>{if(!mIn.trim())return;setMeals(p=>[...p,{name:mIn,time:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}]);setCal(c=>c+420);setProtein(p=>p+32);setMIn("");};
+  const logM=async()=>{
+    if(!mIn.trim())return;
+    const name=mIn;
+    setMIn("");
+    setEstimating(true);
+    try{
+      const res=await fetch("/api/nutrition",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({meal:name})});
+      const n=await res.json();
+      setCal(c=>c+(n.calories||0));
+      setProtein(p=>p+(n.protein||0));
+      setCarbs(c=>c+(n.carbs||0));
+      setFat(f=>f+(n.fat||0));
+    }catch{
+      setCal(c=>c+420);setProtein(p=>p+32);
+    }finally{
+      setEstimating(false);
+    }
+    setMeals(p=>[...p,{name,time:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}]);
+  };
   const logS=()=>{if(!sIn)return;setSleep(parseFloat(sIn));setSIn("");};
   return (
     <div style={{padding:10,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
@@ -1139,14 +1160,14 @@ function HealthTab() {
         <div style={{...ui,fontSize:9,color:TM,marginBottom:12,textTransform:"uppercase",letterSpacing:"0.08em"}}>kcal today</div>
         <Bar pct={(cal/2400)*100}/>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,margin:"14px 0"}}>
-          {[["Protein",protein+"g",A],["Carbs","0g",BLU],["Fat","0g",ORA]].map(([k,v,c])=>(
+          {[["Protein",protein+"g",A],["Carbs",carbs+"g",BLU],["Fat",fat+"g",ORA]].map(([k,v,c])=>(
             <div key={k}><div style={{...ui,fontSize:9,color:TM,marginBottom:3}}>{k}</div><div style={{...ui,fontSize:15,fontWeight:500,color:c}}>{v}</div></div>
           ))}
         </div>
         <div style={{...ui,fontSize:9,color:TM,marginBottom:6,textTransform:"uppercase",letterSpacing:"0.08em"}}>Log meal</div>
         <div style={{display:"flex",gap:6}}>
-          <input value={mIn} onChange={e=>setMIn(e.target.value)} onKeyDown={e=>e.key==="Enter"&&logM()} placeholder="e.g. chicken, rice, broccoli" className="gi" style={{marginBottom:0,flex:1,fontSize:11}}/>
-          <button className="secb" style={{padding:"0 10px",fontSize:15,borderRadius:7}} onClick={logM}>+</button>
+          <input value={mIn} onChange={e=>setMIn(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!estimating&&logM()} placeholder="e.g. chicken, rice, broccoli" className="gi" style={{marginBottom:0,flex:1,fontSize:11}} disabled={estimating}/>
+          <button className="secb" style={{padding:"0 10px",fontSize:estimating?10:15,borderRadius:7,opacity:estimating?0.5:1}} onClick={logM} disabled={estimating}>{estimating?"…":"+"}</button>
         </div>
         {meals.length>0&&<div style={{marginTop:11}}>{meals.map((m,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><span style={{...ui,fontSize:11,color:TM}}>{m.name}</span><span style={{...mon,fontSize:9,color:TM}}>{m.time}</span></div>)}</div>}
       </div>
