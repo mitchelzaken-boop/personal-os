@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 
 const GlobalStyles = () => (
@@ -175,7 +175,7 @@ const MO = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","D
 const ML = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DL = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 
-function pad(n) { return String(n).padStart(2,"0"); }
+function pad(n: number) { return String(n).padStart(2,"0"); }
 function useNow() {
   const [t,setT] = useState(new Date());
   useEffect(()=>{ const id=setInterval(()=>setT(new Date()),1000); return ()=>clearInterval(id); },[]);
@@ -183,7 +183,7 @@ function useNow() {
 }
 
 // ── SMALL COMPONENTS ─────────────────────────────────────────────────────────
-function Lbl({n,t,r}) {
+function Lbl({n,t,r}:{n:number,t:string,r?:React.ReactNode}) {
   return (
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
       <span style={{...ui,fontSize:9,fontWeight:600,color:"#7a7a86",letterSpacing:"0.13em",textTransform:"uppercase"}}>{pad(n)} // {t}</span>
@@ -196,7 +196,7 @@ function Divider() {
   return <div style={{height:1,background:BOR,margin:"12px 0"}} />;
 }
 
-function Bar({pct, glow=true}) {
+function Bar({pct, glow=true}:{pct:number,glow?:boolean}) {
   return (
     <div style={{height:2,background:"rgba(255,255,255,0.05)",borderRadius:99,boxShadow:"0 1px 0 rgba(0,0,0,0.3) inset"}}>
       <div style={{height:"100%",width:`${Math.min(pct,100)}%`,background:`linear-gradient(90deg,${A},#22c55e)`,borderRadius:99,boxShadow:glow?`0 0 7px rgba(74,222,128,0.38)`:""}} />
@@ -204,7 +204,7 @@ function Bar({pct, glow=true}) {
   );
 }
 
-function Chk({on,toggle}) {
+function Chk({on,toggle}:{on:boolean,toggle:()=>void}) {
   return (
     <div onClick={toggle} style={{width:14,height:14,borderRadius:4,flexShrink:0,marginTop:2,cursor:"pointer",border:`1px solid ${on?"rgba(74,222,128,0.55)":"rgba(255,255,255,0.11)"}`,background:on?"linear-gradient(145deg,#4ade80,#22c55e)":"rgba(255,255,255,0.03)",boxShadow:on?"0 1px 0 rgba(255,255,255,0.28) inset,0 2px 6px rgba(74,222,128,0.22)":"0 1px 0 rgba(255,255,255,0.06) inset",transition:"all 0.14s",display:"flex",alignItems:"center",justifyContent:"center"}}>
       {on&&<span style={{color:"#081208",fontSize:8,fontWeight:700,lineHeight:1}}>✓</span>}
@@ -212,7 +212,7 @@ function Chk({on,toggle}) {
   );
 }
 
-function Spark({data,col=A,h=44,w=200}) {
+function Spark({data,col=A,h=44,w=200}:{data:number[],col?:string,h?:number,w?:number}) {
   const mn=Math.min(...data), mx=Math.max(...data);
   const pts=data.map((v,i)=>`${(i/(data.length-1))*w},${h-((v-mn)/(mx-mn+1))*(h-4)}`).join(" ");
   const area=`0,${h} ${pts} ${w},${h}`;
@@ -230,7 +230,7 @@ function Spark({data,col=A,h=44,w=200}) {
   );
 }
 
-function Modal({title,onClose,children}) {
+function Modal({title,onClose,children}:{title:string,onClose:()=>void,children:React.ReactNode}) {
   return (
     <div className="glass-modal-bg" onClick={onClose}>
       <div className="glass-modal" onClick={e=>e.stopPropagation()}>
@@ -858,7 +858,7 @@ function CRMTab({contacts,setContacts}) {
               <div><span style={{...ui,fontSize:10,fontWeight:500,color:cfg.color,background:cfg.bg,padding:"3px 9px",borderRadius:99,border:`1px solid ${cfg.color}22`}}>{cfg.label}</span></div>
               <div style={{...mon,fontSize:10,color:TM}}>{c.last}</div>
               <div style={{...ui,fontSize:11,color:TM}}>{c.next}</div>
-              <button onClick={()=>openEdit(c)} style={{background:"none",border:"none",color:TM,fontSize:12,cursor:"pointer",padding:"2px 6px",borderRadius:5,transition:"color 0.15s"}} onMouseEnter={e=>e.target.style.color=TX} onMouseLeave={e=>e.target.style.color=TM}>✎</button>
+              <button onClick={()=>openEdit(c)} style={{background:"none",border:"none",color:TM,fontSize:12,cursor:"pointer",padding:"2px 6px",borderRadius:5,transition:"color 0.15s"}} onMouseEnter={e=>(e.currentTarget as HTMLButtonElement).style.color=TX} onMouseLeave={e=>(e.currentTarget as HTMLButtonElement).style.color=TM}>✎</button>
             </div>
           );
         })}
@@ -902,7 +902,7 @@ function BrainTab() {
         setTasks((data??[]).map(r=>({...r,cat:r.category??'PERSONAL',done:r.status==='done'})));
         setLoading(false);
       })
-      .catch(()=>setLoading(false));
+      .then(undefined,()=>setLoading(false));
   },[]);
 
   const add=async()=>{
@@ -994,7 +994,7 @@ function FinanceTab() {
         setFin((data??[]).map(r=>({...r,desc:r.description,cat:r.category})));
         setLoading(false);
       })
-      .catch(()=>setLoading(false));
+      .then(undefined,()=>setLoading(false));
   },[]);
 
   const safe=fin??[];
