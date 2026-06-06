@@ -586,7 +586,7 @@ function HomeTabFixed({tasks,setTasks,now}) {
   };
   const addCap=async()=>{
     if(!cap.trim())return;
-    const {data}=await supabase.from("tasks").insert({title:cap.trim(),category:"PERSONAL",priority:"normal",status:"todo"}).select().single();
+    const {data}=await supabase.from("tasks").insert({title:cap.trim(),cat:"PERSONAL",priority:"normal",status:"todo"}).select().single();
     if(data)setTasks(p=>[...(p??[]),{...data,cat:"PERSONAL",done:false}]);
     setCap("");
   };
@@ -812,9 +812,9 @@ function CRMTab({contacts,setContacts}) {
     if(!form.name)return;
     const {data}=await supabase.from("contacts").insert({
       name:form.name,company:form.company||null,status:form.status,
-      last_contact:form.last||null,next_action:form.next||null,
+      last:form.last||null,next:form.next||null,
     }).select().single();
-    if(data)setContacts(p=>[...(p??[]),{...data,last:data.last_contact,next:data.next_action}]);
+    if(data)setContacts(p=>[...(p??[]),{...data}]);
     setForm(blank);
     setShow(false);
   };
@@ -828,10 +828,10 @@ function CRMTab({contacts,setContacts}) {
     if(!editForm.name)return;
     const updates={
       name:editForm.name,company:editForm.company||null,status:editForm.status,
-      last_contact:editForm.last||null,next_action:editForm.next||null,
+      last:editForm.last||null,next:editForm.next||null,
     };
     const {data}=await supabase.from("contacts").update(updates).eq("id",editing).select().single();
-    if(data)setContacts(p=>(p??[]).map(c=>c.id===editing?{...data,last:data.last_contact,next:data.next_action}:c));
+    if(data)setContacts(p=>(p??[]).map(c=>c.id===editing?{...data}:c));
     setEditing(null);
   };
 
@@ -899,7 +899,7 @@ function BrainTab() {
   useEffect(()=>{
     supabase.from("tasks").select("*").order("priority")
       .then(({data})=>{
-        setTasks((data??[]).map(r=>({...r,cat:r.category??'PERSONAL',done:r.status==='done'})));
+        setTasks((data??[]).map(r=>({...r,cat:r.cat??'PERSONAL',done:r.status==='done'})));
         setLoading(false);
       })
       .then(undefined,()=>setLoading(false));
@@ -908,7 +908,7 @@ function BrainTab() {
   const add=async()=>{
     if(!form.title)return;
     const {data}=await supabase.from("tasks").insert({
-      title:form.title,category:form.cat,priority:form.priority,status:"todo",
+      title:form.title,cat:form.cat,priority:form.priority,status:"todo",
     }).select().single();
     if(data)setTasks(p=>[...(p??[]),{...data,cat:form.cat,done:false}]);
     setForm({title:"",cat:"BUSINESS",priority:"normal"});
@@ -1262,9 +1262,9 @@ export default function PersonalOS() {
 
   useEffect(()=>{
     supabase.from("tasks").select("*").neq("status","done").order("priority")
-      .then(({data})=>setTasks((data??[]).map(r=>({...r,cat:r.category??'PERSONAL',done:false}))));
+      .then(({data})=>setTasks((data??[]).map(r=>({...r,cat:r.cat??'PERSONAL',done:false}))));
     supabase.from("contacts").select("*").order("name")
-      .then(({data})=>setContacts((data??[]).map(r=>({...r,last:r.last_contact,next:r.next_action}))));
+      .then(({data})=>setContacts((data??[]).map(r=>({...r}))));
   },[]);
 
   return (
