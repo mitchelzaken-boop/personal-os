@@ -991,7 +991,7 @@ function FinanceTab() {
   useEffect(()=>{
     supabase.from("finances").select("*").order("date",{ascending:false})
       .then(({data})=>{
-        setFin((data??[]).map(r=>({...r,desc:r.description,cat:r.category})));
+        setFin((data??[]).map(r=>({...r})));
         setLoading(false);
       })
       .then(undefined,()=>setLoading(false));
@@ -1003,10 +1003,10 @@ function FinanceTab() {
   const add=async()=>{
     if(!form.desc||!form.amount)return;
     const {data}=await supabase.from("finances").insert({
-      description:form.desc,type:form.type,amount:parseFloat(form.amount),
-      category:form.cat,date:form.date||new Date().toISOString().split("T")[0],
+      desc:form.desc,type:form.type,amount:parseFloat(form.amount),
+      cat:form.cat,date:form.date||new Date().toISOString().split("T")[0],
     }).select().single();
-    if(data)setFin(p=>[{...data,desc:data.description,cat:data.category},...(p??[])]);
+    if(data)setFin(p=>[{...data},...(p??[])]);
     setForm({desc:"",type:"income",amount:"",cat:"Project",date:""});
     setShow(false);
   };
