@@ -1128,11 +1128,12 @@ function HealthTab() {
   const [sleep,setSleep]=useState(0);
   const [sIn,setSIn]=useState("");
   const [habits,setHabits]=useState([]);
-  const [rowExists,setRowExists]=useState(false);
 
   useEffect(()=>{
+    console.log("[health] fetching today's row for", today);
     supabase.from("health_logs").select("*").eq("date",today).maybeSingle()
-      .then(({data})=>{
+      .then(({data,error})=>{
+        console.log("[health] fetch result:", {data,error});
         if(data){
           setCal(data.calories||0);
           setProtein(data.protein||0);
@@ -1140,20 +1141,21 @@ function HealthTab() {
           setFat(data.fat||0);
           setSleep(data.sleep||0);
           setMeals(Array.isArray(data.meals)?data.meals:[]);
-          setRowExists(true);
         }
       });
     supabase.from("habits").select("*").order("id")
       .then(({data})=>setHabits(Array.isArray(data)?data:[]));
   },[today]);
 
-  const upsertHealth=async(updates)=>{
-    if(rowExists){
-      await supabase.from("health_logs").update(updates).eq("date",today);
-    }else{
-      await supabase.from("health_logs").insert({date:today,...updates});
-      setRowExists(true);
-    }
+  // Always passes the full row so onConflict can safely overwrite every column.
+  // Call with overrides for the values that changed; stale state fills the rest.
+  const saveHealth=async(overrides)=>{
+    const row={date:today,calories:cal,protein,carbs,fat,sleep,meals,...overrides};
+    console.log("[health] upserting row:", row);
+    const {error}=await supabase.from("health_logs")
+      .upsert(row,{onConflict:"date"});
+    if(error) console.error("[health] upsert error:", error);
+    else console.log("[health] upsert ok");
   };
 
   const logM=async()=>{
@@ -1163,10 +1165,15 @@ function HealthTab() {
     setEstimating(true);
     let addCal=0,addProtein=0,addCarbs=0,addFat=0;
     try{
+      console.log("[health] calling /api/nutrition for:", name);
       const res=await fetch("/api/nutrition",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({meal:name})});
+      console.log("[health] nutrition response status:", res.status);
       const n=await res.json();
+      console.log("[health] nutrition response body:", n);
+      if(n.error) throw new Error(n.error);
       addCal=n.calories||0;addProtein=n.protein||0;addCarbs=n.carbs||0;addFat=n.fat||0;
-    }catch{
+    }catch(err){
+      console.error("[health] nutrition fetch failed, using fallback:", err);
       addCal=420;addProtein=32;
     }finally{
       setEstimating(false);
@@ -1176,15 +1183,16 @@ function HealthTab() {
     const newCarbs=carbs+addCarbs;
     const newFat=fat+addFat;
     const newMeals=[...meals,{name,time:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}];
+    console.log("[health] new totals:", {newCal,newProtein,newCarbs,newFat});
     setCal(newCal);setProtein(newProtein);setCarbs(newCarbs);setFat(newFat);setMeals(newMeals);
-    await upsertHealth({calories:newCal,protein:newProtein,carbs:newCarbs,fat:newFat,meals:newMeals});
+    await saveHealth({calories:newCal,protein:newProtein,carbs:newCarbs,fat:newFat,meals:newMeals});
   };
 
   const logS=async()=>{
     if(!sIn)return;
     const hours=parseFloat(sIn);
     setSleep(hours);setSIn("");
-    await upsertHealth({sleep:hours});
+    await saveHealth({sleep:hours});
   };
   return (
     <div style={{padding:10,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
