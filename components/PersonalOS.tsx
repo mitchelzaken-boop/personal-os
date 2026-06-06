@@ -1117,6 +1117,7 @@ function JournalTab() {
 
 // ═══ HEALTH ═══════════════════════════════════════════════════════════════════
 function HealthTab() {
+  const today=new Date().toISOString().split("T")[0];
   const [cal,setCal]=useState(0);
   const [protein,setProtein]=useState(0);
   const [carbs,setCarbs]=useState(0);
@@ -1127,31 +1128,64 @@ function HealthTab() {
   const [sleep,setSleep]=useState(0);
   const [sIn,setSIn]=useState("");
   const [habits,setHabits]=useState([]);
+  const [rowExists,setRowExists]=useState(false);
 
   useEffect(()=>{
+    supabase.from("health_logs").select("*").eq("date",today).maybeSingle()
+      .then(({data})=>{
+        if(data){
+          setCal(data.calories||0);
+          setProtein(data.protein||0);
+          setCarbs(data.carbs||0);
+          setFat(data.fat||0);
+          setSleep(data.sleep||0);
+          setMeals(Array.isArray(data.meals)?data.meals:[]);
+          setRowExists(true);
+        }
+      });
     supabase.from("habits").select("*").order("id")
       .then(({data})=>setHabits(Array.isArray(data)?data:[]));
-  },[]);
+  },[today]);
+
+  const upsertHealth=async(updates)=>{
+    if(rowExists){
+      await supabase.from("health_logs").update(updates).eq("date",today);
+    }else{
+      await supabase.from("health_logs").insert({date:today,...updates});
+      setRowExists(true);
+    }
+  };
+
   const logM=async()=>{
     if(!mIn.trim())return;
     const name=mIn;
     setMIn("");
     setEstimating(true);
+    let addCal=0,addProtein=0,addCarbs=0,addFat=0;
     try{
       const res=await fetch("/api/nutrition",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({meal:name})});
       const n=await res.json();
-      setCal(c=>c+(n.calories||0));
-      setProtein(p=>p+(n.protein||0));
-      setCarbs(c=>c+(n.carbs||0));
-      setFat(f=>f+(n.fat||0));
+      addCal=n.calories||0;addProtein=n.protein||0;addCarbs=n.carbs||0;addFat=n.fat||0;
     }catch{
-      setCal(c=>c+420);setProtein(p=>p+32);
+      addCal=420;addProtein=32;
     }finally{
       setEstimating(false);
     }
-    setMeals(p=>[...p,{name,time:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}]);
+    const newCal=cal+addCal;
+    const newProtein=protein+addProtein;
+    const newCarbs=carbs+addCarbs;
+    const newFat=fat+addFat;
+    const newMeals=[...meals,{name,time:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}];
+    setCal(newCal);setProtein(newProtein);setCarbs(newCarbs);setFat(newFat);setMeals(newMeals);
+    await upsertHealth({calories:newCal,protein:newProtein,carbs:newCarbs,fat:newFat,meals:newMeals});
   };
-  const logS=()=>{if(!sIn)return;setSleep(parseFloat(sIn));setSIn("");};
+
+  const logS=async()=>{
+    if(!sIn)return;
+    const hours=parseFloat(sIn);
+    setSleep(hours);setSIn("");
+    await upsertHealth({sleep:hours});
+  };
   return (
     <div style={{padding:10,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
       <div className="gc">
